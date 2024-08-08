@@ -68,7 +68,7 @@ class Cache(Module):
 
     def forward(self, sequence: Tensor, start_position: int) -> Tensor:
         batch_size, sequence_lenght = sequence.size(0), sequence.size(2)
-        self.sequence_cache[:batch_size, :, start_position: start_position+sequence_lenght]
+        self.sequence_cache[:batch_size, :, start_position: start_position+sequence_lenght] = sequence
         return self.sequence_cache[:batch_size, :, :start_position+sequence_lenght]
 
 class Attention(Module):
@@ -91,7 +91,7 @@ class Attention(Module):
     def forward(self, sequence: Tensor, rotatory_embeddings: Tensor, start_position: int, mask: Optional[Tensor] = None) -> Tensor:
         query, key, value = self.q_projector(sequence), self.k_projector(sequence), self.v_projector(sequence)        
         query, key, value = split(query, self.number_of_heads), split(key, self.number_of_kv_heads), split(value, self.number_of_kv_heads)
-        query, key = apply_rotatory_embeddings(query, rotatory_embeddings), apply_rotatory_embeddings(query, rotatory_embeddings)
+        query, key = apply_rotatory_embeddings(query, rotatory_embeddings), apply_rotatory_embeddings(key, rotatory_embeddings)
         key, value = self.k_cache(key, start_position), self.v_cache(value, start_position)
         key, value = repeat_interleave(key, self.repeats, 1), repeat_interleave(value, self.repeats, 1)
         attention = scaled_dot_product_attention(query, key, value, mask)
