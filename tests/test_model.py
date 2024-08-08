@@ -25,7 +25,7 @@ def fairscale_init():
     os.environ['MASTER_PORT'] = '29500'
     os.environ['WORLD_SIZE'] = '1'
     os.environ['RANK'] = '0'
-    dist.init_process_group(backend='nccl')
+    dist.init_process_group(backend='gloo')
     fs_init.initialize_model_parallel(1)
     yield
     dist.destroy_process_group()
