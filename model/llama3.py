@@ -64,12 +64,14 @@ def apply_rotatory_embeddings(sequence: Tensor, rotatory_embeddings: Tensor) -> 
 class Cache(Module):
     def __init__(self, batch_size_limit: int, sequence_lenght_limit: int, number_of_heads: int, heads_dimension: int):
         super().__init__()
-        self.sequence_cache = Parameter(data=zeros(batch_size_limit, number_of_heads, sequence_lenght_limit, heads_dimension), requires_grad=False)
+        print(number_of_heads)
+        self.sequence_cache = Parameter(data=zeros(batch_size_limit, sequence_lenght_limit, number_of_heads, heads_dimension), requires_grad=False)
 
     def forward(self, sequence: Tensor, start_position: int) -> Tensor:
         batch_size, sequence_lenght = sequence.size(0), sequence.size(2)
-        self.sequence_cache[:batch_size, :, start_position: start_position+sequence_lenght] = sequence
-        return self.sequence_cache[:batch_size, :, :start_position+sequence_lenght]
+        self.sequence_cache[:batch_size, start_position: start_position+sequence_lenght] = sequence.transpose(1, 2)
+        return self.sequence_cache[:batch_size, :start_position+sequence_lenght].transpose(1, 2)
+        
 
 class Attention(Module):
     def __init__(self, model_dimension: int, number_of_heads: int, number_of_kv_heads: int,batch_size_limit: int, sequence_lenght_limit: int):
