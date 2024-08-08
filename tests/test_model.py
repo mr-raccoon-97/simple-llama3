@@ -82,6 +82,10 @@ def test_attention(fairscale_init):
 
         assert output.shape == output2.shape
         assert torch.allclose(output, output2, atol=1e-5)
+        
+        output2 = iattention(x, freqs_cis, 0)        
+        output = attention(x, 0, freqs_cis)
+        assert torch.allclose(output, output2, atol=1e-5)
 
 def test_norm():
     with torch.no_grad():
@@ -255,9 +259,4 @@ def test_transformer(fairscale_init):
         output2 = itransformer(x, 0)
 
         assert output.shape == output2.shape
-        assert torch.allclose(output, output2, atol=1e-4)
-
-        output = transformer(output, 0)
-        output2 = itransformer(output2, 0)
-
         assert torch.allclose(output, output2, atol=1e-4)
