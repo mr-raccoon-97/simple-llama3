@@ -231,8 +231,8 @@ def test_transformer(fairscale_init):
                 if i == j:
                     layer.attention.cache_k.random_()
                     layer.attention.cache_v.random_()
-                    ilayer.attention.k_cache.sequence_cache.copy_(layer.attention.cache_k.transpose(1, 2))
-                    ilayer.attention.v_cache.sequence_cache.copy_(layer.attention.cache_v.transpose(1, 2))
+                    ilayer.attention.k_cache.sequence_cache.copy_(layer.attention.cache_k)
+                    ilayer.attention.v_cache.sequence_cache.copy_(layer.attention.cache_v)
                     ilayer.attention.q_projector.weight.copy_(layer.attention.wq.weight)
 
                     ilayer.attention.k_projector.weight.copy_(layer.attention.wk.weight)
@@ -255,4 +255,9 @@ def test_transformer(fairscale_init):
         output2 = itransformer(x, 0)
 
         assert output.shape == output2.shape
+        assert torch.allclose(output, output2, atol=1e-4)
+
+        output = transformer(output, 0)
+        output2 = itransformer(output2, 0)
+
         assert torch.allclose(output, output2, atol=1e-4)
