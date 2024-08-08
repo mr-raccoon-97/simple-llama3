@@ -7,16 +7,16 @@ import fairscale.nn.model_parallel.initialize as fs_init
 import torch.distributed as dist
 import os
 
-from models.original_llama3 import ModelArgs, Attention, RMSNorm, FeedForward, Transformer, precompute_freqs_cis
-from models.original_llama3 import TransformerBlock 
+from model.original_llama3 import ModelArgs, Attention, RMSNorm, FeedForward, Transformer, precompute_freqs_cis
+from model.original_llama3 import TransformerBlock 
 
-from models.llama3 import Attention as IAttention, apply_rotatory_embeddings
-from models.llama3 import precompute_complex_positional_embeddings
-from models.llama3 import RMSNorm as IRMSNorm
-from models.llama3 import FeedForward as IFeedForward
-from models.llama3 import Decoder as ITransformerBlock
-from models.llama3 import Transformer as ITransformer
-from models.llama3 import Settings
+from model.llama3 import Attention as IAttention, apply_rotatory_embeddings
+from model.llama3 import precompute_complex_positional_embeddings
+from model.llama3 import RMSNorm as IRMSNorm
+from model.llama3 import FeedForward as IFeedForward
+from model.llama3 import Decoder as ITransformerBlock
+from model.llama3 import Transformer as ITransformer
+from model.llama3 import Settings
     
 
 @pytest.fixture(scope='session')
