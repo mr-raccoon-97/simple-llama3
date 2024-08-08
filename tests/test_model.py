@@ -50,12 +50,11 @@ def test_attention(fairscale_init):
         
 
         attention = Attention(args)
-        attention.cuda()
         attention.eval()
 
-        x = torch.randn(2, 2048, 4096).cuda()
+        x = torch.randn(2, 2048, 4096)
 
-        freqs_cis = precompute_freqs_cis(4096, 2048, theta=args.rope_theta).cuda()
+        freqs_cis = precompute_freqs_cis(4096, 2048, theta=args.rope_theta)
         freqs_cis = freqs_cis[:, :64]
 
         iattention = IAttention(
@@ -88,12 +87,10 @@ def test_attention(fairscale_init):
 def test_norm():
     with torch.no_grad():
         norm = RMSNorm(4096, eps=1e-6)
-        norm.cuda()
 
         inorm = IRMSNorm(4096, 1e-6)
-        inorm.cuda()
 
-        x = torch.randn(2, 2048, 4096).cuda()
+        x = torch.randn(2, 2048, 4096)
 
         output = norm(x)
         output2 = inorm(x)
@@ -118,15 +115,11 @@ def test_feed_forward():
         hidden_dim = int(2 * hidden_dim / 3)
         iffn = IFeedForward(4096, hidden_dim, 256, None)
         
-        ffn.cuda()
-
         iffn.gate_layer.weight.copy_(ffn.w3.weight)
         iffn.input_layer.weight.copy_(ffn.w1.weight)
         iffn.output_layer.weight.copy_(ffn.w2.weight)
 
-        iffn.cuda()
-
-        x = torch.randn(2, 2048, 4096).cuda()
+        x = torch.randn(2, 2048, 4096)
 
         output = ffn(x)
         output2 = iffn(x)
@@ -170,7 +163,7 @@ def test_decoder():
         transformer_block.attention.cache_k.random_()
         transformer_block.attention.cache_v.random_()
 
-        transformer_block.cuda()
+        transformer_block
         transformer_block.eval()
 
         itransformer_block.attention.k_cache.sequence_cache.copy_(transformer_block.attention.cache_k.transpose(1, 2))
@@ -184,12 +177,12 @@ def test_decoder():
         itransformer_block.ffn.output_layer.weight.copy_(transformer_block.feed_forward.w2.weight)
         itransformer_block.ffn.gate_layer.weight.copy_(transformer_block.feed_forward.w3.weight)
 
-        itransformer_block.cuda()
+        itransformer_block
 
-        x = torch.randn(2, 2048, 4096).cuda()
+        x = torch.randn(2, 2048, 4096)
 
         freqs_cis = precompute_freqs_cis(4096, 2048 * 2, 500000)
-        freqs_cis = freqs_cis[:2048, :64].cuda()
+        freqs_cis = freqs_cis[:2048, :64]
 
         output = transformer_block(x, 0, freqs_cis, None)
         output2 = itransformer_block(x, 0, freqs_cis)
@@ -255,13 +248,12 @@ def test_transformer(fairscale_init):
                     ilayer.ffn.gate_layer.weight.copy_(layer.feed_forward.w3.weight)
 
 
-        transformer.cuda()
+
         transformer.eval()
 
-        itransformer.cuda()
         itransformer.eval()
 
-        x = torch.randint(1, 4000, (2, 2048)).cuda()
+        x = torch.randint(1, 4000, (2, 2048))
 
         output = transformer(x, 0)
         output2 = itransformer(x, 0)
