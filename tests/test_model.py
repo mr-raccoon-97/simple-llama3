@@ -68,8 +68,8 @@ def test_attention(fairscale_init):
         attention.cache_k.random_()
         attention.cache_v.random_()
 
-        iattention.k_cache.sequence_cache.copy_(attention.cache_k.transpose(1, 2))
-        iattention.v_cache.sequence_cache.copy_(attention.cache_v.transpose(1, 2))
+        iattention.k_cache.sequence_cache.copy_(attention.cache_k)
+        iattention.v_cache.sequence_cache.copy_(attention.cache_v)
         iattention.q_projector.weight.copy_(attention.wq.weight)
         iattention.k_projector.weight.copy_(attention.wk.weight)
         iattention.v_projector.weight.copy_(attention.wv.weight)
@@ -164,8 +164,8 @@ def test_decoder():
 
         transformer_block.eval()
 
-        itransformer_block.attention.k_cache.sequence_cache.copy_(transformer_block.attention.cache_k.transpose(1, 2))
-        itransformer_block.attention.v_cache.sequence_cache.copy_(transformer_block.attention.cache_v.transpose(1, 2))
+        itransformer_block.attention.k_cache.sequence_cache.copy_(transformer_block.attention.cache_k)
+        itransformer_block.attention.v_cache.sequence_cache.copy_(transformer_block.attention.cache_v)
         itransformer_block.attention.q_projector.weight.copy_(transformer_block.attention.wq.weight)
         itransformer_block.attention.k_projector.weight.copy_(transformer_block.attention.wk.weight)
         itransformer_block.attention.v_projector.weight.copy_(transformer_block.attention.wv.weight)
