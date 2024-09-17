@@ -77,13 +77,13 @@ def test_attention(fairscale_init):
 
         iattention.eval()
 
-        output2 = iattention(x, freqs_cis, 0)        
+        output2 = iattention(x, 0)        
         output = attention(x, 0, freqs_cis)
 
         assert output.shape == output2.shape
         assert torch.allclose(output, output2, atol=1e-5)
         
-        output2 = iattention(x, freqs_cis, 0)        
+        output2 = iattention(x, 0)        
         output = attention(x, 0, freqs_cis)
         assert torch.allclose(output, output2, atol=1e-5)
 
@@ -185,7 +185,7 @@ def test_decoder():
         freqs_cis = freqs_cis[:2048, :64]
 
         output = transformer_block(x, 0, freqs_cis, None)
-        output2 = itransformer_block(x, 0, freqs_cis)
+        output2 = itransformer_block(x, 0)
 
         assert output.shape == output2.shape
         assert torch.allclose(output, output2, atol=1e-4)

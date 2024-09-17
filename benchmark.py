@@ -150,7 +150,7 @@ with torch.no_grad():
 
     # Benchmark Attention
     attention_forward_timer = benchmark.Timer(
-        stmt='attention(x,freqs_cis,start_pos)',
+        stmt='attention(x,start_pos)',
         setup='from __main__ import attention, x',
         globals=globals(),
         num_threads=1

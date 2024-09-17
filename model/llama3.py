@@ -19,7 +19,6 @@ from torch.nn import Embedding
 from torch.nn import Sequential, SiLU
 from torch.nn.functional import scaled_dot_product_attention
 
-
 class RMSNorm(Module):
     def __init__(self, model_dimension: int, epsilon: float = 1e-5):
         super().__init__()
@@ -39,6 +38,15 @@ def precompute_complex_positional_embeddings(model_dimension: int, sequence_leng
     frequencies = outer(arange(sequence_lenght_limit), frequencies)
     return polar(ones_like(frequencies), frequencies)
 
+def apply_rotatory_embeddings(sequence: Tensor, rotatory_embeddings: Tensor) -> Tensor:
+    batch_size, number_of_heads, sequence_lenght, heads_dimension = sequence.shape
+    sequence = sequence.view(batch_size, number_of_heads, sequence_lenght, heads_dimension // 2, 2)
+    sequence = view_as_complex(sequence)
+    sequence = sequence * rotatory_embeddings
+    sequence = view_as_real(sequence)
+    return sequence.view(batch_size, number_of_heads, sequence_lenght, heads_dimension)
+
+
 def split(sequence: Tensor, number_of_heads: int) -> Tensor:
     batch_size, sequence_length, model_dimension = sequence.shape
     sequence = sequence.view(batch_size, sequence_length, number_of_heads, model_dimension // number_of_heads)
@@ -52,14 +60,21 @@ def concat(sequence: Tensor) -> Tensor:
     sequence = sequence.reshape(batch_size, sequence_lenght, heads_dimension* number_of_heads)
     return sequence
 
-def apply_rotatory_embeddings(sequence: Tensor, rotatory_embeddings: Tensor) -> Tensor:
-    batch_size, number_of_heads, sequence_lenght, heads_dimension = sequence.shape
-    sequence = sequence.view(batch_size, number_of_heads, sequence_lenght, heads_dimension // 2, 2)
-    sequence = view_as_complex(sequence)
-    sequence = sequence * rotatory_embeddings
-    sequence = view_as_real(sequence)
-    return sequence.view(batch_size, number_of_heads, sequence_lenght, heads_dimension)
+class RotatoryPositionalEncoding(Module):
+    def __init__(self, model_dimension: int, sequence_lenght_limit: int, scaling_factor: float = 10000.0):
+        super().__init__()
+        frequencies = Tensor(sequence_lenght_limit, model_dimension // 2)
+        frequencies = exp(- arange(0, model_dimension, 2) * math.log(scaling_factor) / model_dimension)
+        frequencies = outer(arange(sequence_lenght_limit), frequencies)
+        self.embeddings = polar(ones_like(frequencies), frequencies)
 
+    def forward(self, sequence: Tensor, start_position: int = 0) -> Tensor:
+            batch_size, number_of_heads, sequence_lenght, heads_dimension = sequence.shape
+            sequence = sequence.view(batch_size, number_of_heads, sequence_lenght, heads_dimension // 2, 2)
+            sequence = view_as_complex(sequence)
+            sequence = sequence * self.embeddings[start_position : start_position + sequence_lenght, :heads_dimension //2].to(sequence.device)
+            sequence = view_as_real(sequence)
+            return sequence.view(batch_size, number_of_heads, sequence_lenght, heads_dimension)
 
 class Cache(Module):
     def __init__(self, batch_size_limit: int, sequence_lenght_limit: int, number_of_heads: int, heads_dimension: int):
@@ -74,7 +89,7 @@ class Cache(Module):
         
 
 class Attention(Module):
-    def __init__(self, model_dimension: int, number_of_heads: int, number_of_kv_heads: int,batch_size_limit: int, sequence_lenght_limit: int):
+    def __init__(self, model_dimension: int, number_of_heads: int, number_of_kv_heads: int, batch_size_limit: int, sequence_lenght_limit: int):
         super().__init__()
         self.model_dimension = model_dimension
         self.heads_dimension = model_dimension // number_of_heads
@@ -89,11 +104,12 @@ class Attention(Module):
 
         self.k_cache = Cache(batch_size_limit, sequence_lenght_limit, self.number_of_kv_heads, self.heads_dimension)
         self.v_cache = Cache(batch_size_limit, sequence_lenght_limit, self.number_of_kv_heads, self.heads_dimension)
-        
-    def forward(self, sequence: Tensor, rotatory_embeddings: Tensor, start_position: int, mask: Optional[Tensor] = None) -> Tensor:
+        self.positional_embeddings = RotatoryPositionalEncoding(model_dimension, sequence_lenght_limit)
+
+    def forward(self, sequence: Tensor, start_position: int, mask: Optional[Tensor] = None) -> Tensor:
         query, key, value = self.q_projector(sequence), self.k_projector(sequence), self.v_projector(sequence)        
         query, key, value = split(query, self.number_of_heads), split(key, self.number_of_kv_heads), split(value, self.number_of_kv_heads)
-        query, key = apply_rotatory_embeddings(query, rotatory_embeddings), apply_rotatory_embeddings(key, rotatory_embeddings)
+        query, key = self.positional_embeddings(query, start_position), self.positional_embeddings(key, start_position)
         key, value = self.k_cache(key, start_position), self.v_cache(value, start_position)
         key, value = repeat_interleave(key, self.repeats, 1), repeat_interleave(value, self.repeats, 1)
         attention = scaled_dot_product_attention(query, key, value, mask)
@@ -158,8 +174,8 @@ class Decoder(Module):
         self.ffn_norm = RMSNorm(settings.model_dimension)
         
 
-    def forward(self, input: Tensor, start_position: int, rotatory_embeddings: Tensor, mask: Optional[Tensor] = None) -> Tensor:
-        output = input + self.attention(self.attention_norm(input), rotatory_embeddings, start_position, mask)
+    def forward(self, input: Tensor, start_position: int, mask: Optional[Tensor] = None) -> Tensor:
+        output = input + self.attention(self.attention_norm(input), start_position, mask)
         return output + self.ffn(self.ffn_norm(output))
 
 
@@ -179,8 +195,6 @@ class Transformer(Module):
     def forward(self, tokens: Tensor, start_position: int) -> Tensor:
         batch_size, sequence_lenght = tokens.shape
         sequence = self.embeddings(tokens)
-        positional_embeddings = self.positional_embeddings[start_position: start_position + sequence_lenght]
-
         mask = None
         if sequence_lenght > 1:
             mask = ones(sequence_lenght, sequence_lenght)
@@ -188,7 +202,7 @@ class Transformer(Module):
             mask = hstack([zeros(sequence_lenght, start_position), mask]).to(tokens.device)
             
         for layer in self.layers:
-            sequence = layer(sequence, start_position, positional_embeddings, mask)
+            sequence = layer(sequence, start_position, mask)
         
         sequence = self.norm(sequence)
         return self.output_layer(sequence)
